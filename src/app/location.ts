@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Geolocation } from '@capacitor/geolocation';
+import { Geolocation, Position, PermissionStatus } from '@capacitor/geolocation';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 
@@ -11,6 +11,58 @@ export class LocationService {
   public location$ = this.locationSubject.asObservable(); // Observable to expose location updates
 
   constructor(private httpClient: HttpClient) {}
+
+  // async checkAndRequestLocationPermission() {
+  //   const permissions = await Geolocation.requestPermissions();
+  //   return permissions;
+  // }
+
+  /**
+   * Checks the status of location permissions.
+   * @returns A promise with the current permission status.
+   */
+  //  async checkLocationPermissions(): Promise<PermissionStatus> {
+  //   const permissions = await Geolocation.checkPermissions();
+  //   return permissions;
+  // }
+
+  /**
+   * Requests location permissions from the user.
+   * @returns A promise with the new permission status.
+   */
+  // async requestLocationPermissions(): Promise<PermissionStatus> {
+  //   const permissions = await Geolocation.requestPermissions();
+  //   return permissions;
+  // }
+
+  /**
+   * Gets the current position of the device.
+   * Automatically handles permission checks and requests.
+   * @returns A promise that resolves with the Position or rejects on error.
+   */
+  // async getCurrentPosition(): Promise<any> {
+  //   try {
+  //     const permissions = await this.checkLocationPermissions();
+  //     if (permissions.location === 'granted') {
+  //       // Permission is already granted, get position directly
+  //       this.watchLocation();
+  //     } else if (permissions.location === 'prompt' || permissions.location === 'prompt-with-rationale') {
+  //       // Permission needs to be requested or re-requested
+  //       const newPermissions = await this.requestLocationPermissions();
+  //       if (newPermissions.location === 'granted') {
+  //         this.watchLocation();
+  //       } else {
+  //         alert('Location permission was denied.');
+  //       }
+  //     } else {
+  //       // Permission is permanently denied
+  //       alert('Location permission is permanently denied. Please enable it in your device settings.');
+  //     }
+  //   } catch (error) {
+  //     alert('Error getting location:'+ error);
+  //     throw error;
+  //   }
+  // }
 
   // Watch location for updates
   watchLocation() {
@@ -37,9 +89,9 @@ export class LocationService {
         this.locationSubject.next([...currentLocations, locationData]);
 
         // Send the location to API
-        // this.sendLocationToAPI(position.coords.latitude, position.coords.longitude);
+        this.sendLocationToAPI(position.coords.latitude, position.coords.longitude);
       } else {
-        console.error('Position object or coordinates are null');
+        alert('Position object or coordinates are null');
       }
     });
   }
@@ -49,7 +101,7 @@ export class LocationService {
     console.log('Sending location to API:', latitude, longitude);
     // Example: Replace with your actual API endpoint
     this.httpClient
-      .post('YOUR_API_URL', { latitude, longitude })
+      .post('https://3c047cad03b8.ngrok-free.app/rides/geo-location/', { latitude, longitude })
       .subscribe((response) => {
         console.log('API Response:', response);
       });

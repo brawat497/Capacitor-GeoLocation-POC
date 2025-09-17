@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { LocationService } from '../location';
 import { Subscription } from 'rxjs';
+import { Platform } from '@ionic/angular';
 
 @Component({
   selector: 'app-home',
@@ -15,6 +16,10 @@ export class HomePage implements OnInit, OnDestroy {
   constructor(private locationService: LocationService) {}
 
   ngOnInit() {
+    this.startWatchingLocation();    
+  }
+
+  startWatchingLocation(){
     // Start watching the live location when the component is initialized
     this.locationService.watchLocation();
 
