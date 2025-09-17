@@ -1,20 +1,26 @@
-<ion-header [translucent]="true">
+<ion-header>
   <ion-toolbar>
     <ion-title>
-      Blank
+      Live Location Updates
     </ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content>
+  <div *ngIf="locations?.length; else loading">
+    <div *ngFor="let location of locations; let i = index">
+      <div class="location-entry">
+        <p><strong>Timestamp:</strong> {{ location.timestamp }}</p>
+        <p><strong>Latitude:</strong> {{ location.coords.latitude }}</p>
+        <p><strong>Longitude:</strong> {{ location.coords.longitude }}</p>
+      </div>
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
+      <!-- Separator between location entries -->
+      <div *ngIf="i < locations.length - 1" class="separator"></div>
+    </div>
   </div>
+
+  <ng-template #loading>
+    <p>Loading live location...</p>
+  </ng-template>
 </ion-content>
