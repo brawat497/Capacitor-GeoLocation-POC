@@ -1,3 +1,42 @@
 <ion-app>
-  <ion-router-outlet></ion-router-outlet>
+  <ion-header>
+    <ion-toolbar>
+      <ion-title>
+        Live Location Updates
+      </ion-title>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content>
+    <div>
+      <h2>Logs</h2>
+      <div *ngFor="let log of logs;">
+        <span>{{ log }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="locations?.length; else loading">
+      <div *ngFor="let location of locations; let i = index">
+        <div class="location-entry">
+          <p><strong>Latitude:</strong> {{ location.coords.latitude }}</p>
+          <p><strong>Longitude:</strong> {{ location.coords.longitude }}</p>
+        </div>
+  
+        <!-- Separator between location entries -->
+        <div *ngIf="i < locations.length - 1" class="separator"></div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Errors</h2>
+      <div *ngFor="let error of errors; let i = index" style="display: flex; flex-direction: row; gap: 15px;">
+        <span>{{ i }}</span>
+        <span>{{error.message || "empty message"}}</span>
+        <span>{{error.code}}</span>
+      </div>
+    </div>
+  
+    <ng-template #loading>
+      <p>Loading live location...</p>
+    </ng-template>
+  </ion-content>  
 </ion-app>

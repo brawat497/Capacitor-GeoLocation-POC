@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">locationTrackingApp</string>
+    <string name="title_activity_main">locationTrackingApp</string>
+    <string name="package_name">com.geolocation.app</string>
+    <string name="custom_url_scheme">com.geolocation.app</string>
+</resources>
