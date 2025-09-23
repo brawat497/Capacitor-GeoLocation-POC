@@ -30,6 +30,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private httpClient: HttpClient
   ) {}
 
+  // https://ionicframework.com/docs/cli/commands/build
   // https://ionicframework.com/docs/native/geolocation
   // https://www.npmjs.com/package/@capacitor-community/background-geolocation?activeTab=readme
 
@@ -163,7 +164,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Send location to API
   private sendLocationToAPI(location: any) {
     this.httpClient
-      .post('https://f06eb201dd96.ngrok-free.app/send-data', location)
+      .post('https://6f2fa5db34e4.ngrok-free.app/send-data', location)
       .pipe(
         catchError((error) => {
           // Handle the error
