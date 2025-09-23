@@ -1,7 +1,15 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { BehaviorSubject, catchError, of, Subscription } from 'rxjs';
-import { Geolocation } from '@capacitor/geolocation';
+import { catchError, of } from 'rxjs';
+import { Geolocation, Position } from '@capacitor/geolocation';
 import { HttpClient } from '@angular/common/http';
+
+import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Platform } from '@ionic/angular';
+import { PermissionsService } from './services/permissions.service';
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
+  'BackgroundGeolocation'
+);
 
 @Component({
   selector: 'app-root',
@@ -10,89 +18,152 @@ import { HttpClient } from '@angular/common/http';
   standalone: false,
 })
 export class AppComponent implements OnInit, OnDestroy {
-  locations: any[] = []; // To store locations with timestamps
-  locationSubscription: Subscription | null = null;
-  errors: any[] = [];
-  logs: any[] = [];
-  private locationSubject = new BehaviorSubject<any[]>([]); // Store an array of locations with timestamps
-  public location$ = this.locationSubject.asObservable(); // Observable to expose location updates
+  positionOptions: PositionOptions = {
+    enableHighAccuracy: true,
+  };
+  watcherID: string = '';
+  isNativePlatform = Capacitor.isNativePlatform();
 
-  positionOptions : PositionOptions = {
-    enableHighAccuracy: true
-  }
-
-  constructor(private httpClient: HttpClient) {}
+  constructor(
+    private platform: Platform,
+    private permissions: PermissionsService,
+    private httpClient: HttpClient
+  ) {}
 
   // https://ionicframework.com/docs/native/geolocation
+  // https://www.npmjs.com/package/@capacitor-community/background-geolocation?activeTab=readme
 
   ngOnInit() {
-    this.startWatchingLocation();    
+    this.initializeLocationTracking();
   }
 
-  startWatchingLocation(){
-    // Start watching the live location when the component is initialized
-    this.watchLocation();
+  initializeLocationTracking() {
+    if (Capacitor.isNativePlatform()) {
+      this.handleBackgroundGeoLocation();
+    } else {
+      this.watchLocation();
+    }
+  }
 
-    // Subscribe to location updates
-    this.locationSubscription = this.location$.subscribe(
-      (locationData) => {
-        this.locations = locationData; // Update the location
+  async handleBackgroundGeoLocation() {
+    // Wait for the platform to be ready
+    await this.platform.ready();
+
+    // Request notification permission on Android 13+
+    const notificationPermissionGranted =
+      await this.permissions.requestNotificationPermission();
+
+    if (!notificationPermissionGranted) {
+      alert('User denied notification permissions. Background geolocation may not work correctly.');
+      // Handle the case where the user denies permission
+      return;
+    }
+    this.startWatchingBackgroundGeoLocation();
+  }
+
+  startWatchingBackgroundGeoLocation() {
+    BackgroundGeolocation.addWatcher(
+      {
+        // If the "backgroundMessage" option is defined, the watcher will
+        // provide location updates whether the app is in the background or the
+        // foreground. If it is not defined, location updates are only
+        // guaranteed in the foreground. This is true on both platforms.
+
+        // On Android, a notification must be shown to continue receiving
+        // location updates in the background. This option specifies the text of
+        // that notification.
+        backgroundMessage: 'Cancel to prevent battery drain.',
+
+        // The title of the notification mentioned above. Defaults to "Using
+        // your location".
+        backgroundTitle: 'Tracking You.',
+
+        // Whether permissions should be requested from the user automatically,
+        // if they are not already granted. Defaults to "true".
+        requestPermissions: true,
+
+        // If "true", stale locations may be delivered while the device
+        // obtains a GPS fix. You are responsible for checking the "time"
+        // property. If "false", locations are guaranteed to be up to date.
+        // Defaults to "false".
+        stale: false,
+
+        // The minimum number of metres between subsequent locations. Defaults
+        // to 0.
+        distanceFilter: 50,
+      },
+      (location, error) => {
+        if (error) {
+          if (error.code === 'NOT_AUTHORIZED') {
+            if (
+              window.confirm(
+                'This app needs your location, ' +
+                  'but does not have permission.\n\n' +
+                  'Open settings now?'
+              )
+            ) {
+              // It can be useful to direct the user to their device's
+              // settings when location permissions have been denied. The
+              // plugin provides the 'openSettings' method to do exactly
+              // this.
+              BackgroundGeolocation.openSettings();
+            }
+          }
+          return console.error(error);
+        }
+        this.sendLocationToAPI(location);
+      }
+    ).then((watcher_id) => {
+      // When a watcher is no longer needed, it should be removed by calling
+      // 'removeWatcher' with an object containing its ID.
+      this.watcherID = watcher_id;
+    });
+  }
+
+  startBackgroundLocationTracking() {
+    this.handleBackgroundGeoLocation();
+  }
+
+  stopBackgroundLocationTracking() {
+    // When a watcher is no longer needed, it should be removed by calling
+    // 'removeWatcher' with an object containing its ID.
+    BackgroundGeolocation.removeWatcher({
+      id: this.watcherID,
+    });
+    this.watcherID = '';
+    alert('Location tracking stopped');
+  }
+
+  watchLocation() {
+    // Start watching the live location when the component is initialized
+    Geolocation.watchPosition(
+      this.positionOptions,
+      (position: Position | null, error: any) => {
+        if (error) {
+          // code: 1: PERMISSION_DENIED – The user has denied the request for geolocation access.
+          // code: 2: POSITION_UNAVAILABLE – The device is unable to retrieve the location (this can happen if the GPS is disabled,
+          //                                 the device is indoors with no GPS signal, or the network cannot fetch the location).
+          // code: 3: TIMEOUT – The request to fetch the location took too long, and it timed out.
+          console.error('Error watching location', error);
+          return;
+        }
+        if (position?.coords) {
+          const locationData = position.coords;
+          console.log('Live Location:', locationData);
+
+          // Send the location to API
+          this.sendLocationToAPI(locationData);
+        } else {
+          alert('Position object or coordinates are null');
+        }
       }
     );
   }
 
-  // Watch location for updates
-  watchLocation() {
-    this.logs.push("location watching started");
-    Geolocation.watchPosition(this.positionOptions, (position: any, error: any) => {
-      if (error) {
-        // code: 1: PERMISSION_DENIED – The user has denied the request for geolocation access.
-        // code: 2: POSITION_UNAVAILABLE – The device is unable to retrieve the location (this can happen if the GPS is disabled,
-        //                                 the device is indoors with no GPS signal, or the network cannot fetch the location).
-        // code: 3: TIMEOUT – The request to fetch the location took too long, and it timed out.
-        console.error('Error watching location', error);
-        this.errors.push(error);
-        return;
-      }
-      if (position?.coords) {
-        // const timestamp = new Date().toLocaleString(); // Current timestamp
-        const locationData = {
-          coords: position.coords
-        };
-
-        console.log('Live Location:', locationData);
-
-        // Emit updated location array (push new location with timestamp)
-        const currentLocations = this.locationSubject.value;
-        this.locationSubject.next([...currentLocations, locationData]);
-        // this.locations.push(locationData);
-
-        // Send the location to API
-        this.sendLocationToAPI(
-          position.coords.latitude,
-          position.coords.longitude
-        );
-      } else {
-        alert('Position object or coordinates are null');
-      }
-    });
-  }
-
-  ngOnDestroy() {
-    // Unsubscribe to prevent memory leaks when the component is destroyed
-    if (this.locationSubscription) {
-      this.locationSubscription.unsubscribe();
-    }
-  }
-
   // Send location to API
-  private sendLocationToAPI(latitude: number, longitude: number) {
-    // console.log('Sending location to API:', latitude, longitude);
+  private sendLocationToAPI(location: any) {
     this.httpClient
-      .post('https://38498e897118.ngrok-free.app/send-data', {
-        latitude,
-        longitude,
-      })
+      .post('https://f06eb201dd96.ngrok-free.app/send-data', location)
       .pipe(
         catchError((error) => {
           // Handle the error
@@ -131,5 +202,11 @@ export class AppComponent implements OnInit, OnDestroy {
           console.error('API Error:', error);
         }
       );
+  }
+
+  ngOnDestroy(): void {
+    if (this.watcherID) {
+      BackgroundGeolocation.removeWatcher({ id: this.watcherID });
+    }
   }
 }
